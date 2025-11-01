@@ -22,12 +22,65 @@ The service consists of three main components:
 
 ## Prerequisites
 
+**For Docker (Recommended):**
+- Docker 20+ 
+- Docker Compose 2+
+
+**For Manual Setup:**
 - Node.js 18+ 
 - PostgreSQL 12+
 - Redis 6+
 - TypeScript 5+
 
 ## Installation
+
+### Docker Installation (Recommended)
+
+The easiest way to get started is using Docker Compose, which automatically sets up PostgreSQL, Redis, and all application services.
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd cron-service
+```
+
+2. Set up environment variables:
+```bash
+cp .env.example .env
+```
+
+3. Configure your `.env` file:
+```env
+# Database Configuration
+DB_USER=your_db_user
+DB_HOST=db
+DB_DATABASE=cron_service
+DB_PASSWORD=your_db_password
+DB_PORT=5432
+
+# Redis Configuration
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# Queue Configuration
+QUEUE_NAME=cron-tasks
+```
+
+4. Start all services with Docker Compose:
+```bash
+docker-compose up -d
+```
+
+This will:
+- Start PostgreSQL with automatic schema initialization via `db-init/init.sql`
+- Start Redis for queue management
+- Build and start the API service (port 3000)
+- Start the Scheduler service
+- Start the Worker service
+
+**Note:** The database schema is automatically initialized from `db-init/init.sql` when the PostgreSQL container starts for the first time. The `init.sql` file creates all necessary tables, indexes, and constraints.
+
+### Manual Installation
 
 1. Clone the repository:
 ```bash
@@ -94,9 +147,44 @@ CREATE INDEX idx_job_executions_status ON job_executions(status);
 CREATE INDEX idx_job_executions_scheduled_time ON job_executions(scheduled_time);
 ```
 
+Alternatively, you can use the SQL from `db-init/init.sql` for manual database setup.
+
 ## Usage
 
-### Development Mode
+### Docker Usage
+
+**Start all services:**
+```bash
+docker-compose up -d
+```
+
+**View logs:**
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f api
+docker-compose logs -f scheduler
+docker-compose logs -f worker
+```
+
+**Stop all services:**
+```bash
+docker-compose down
+```
+
+**Stop services and remove volumes (clean slate):**
+```bash
+docker-compose down -v
+```
+
+**Rebuild services after code changes:**
+```bash
+docker-compose up -d --build
+```
+
+### Manual Development Mode
 
 Start the services individually:
 
@@ -122,6 +210,8 @@ Use PM2 for process management:
 ```bash
 pm2 start ecosystem.config.js
 ```
+
+Or use Docker Compose for production deployments.
 
 ## API Endpoints
 
@@ -217,18 +307,23 @@ The service provides comprehensive logging:
 ### Project Structure
 
 ```
-src/
-├── config.ts          # Configuration management
-├── database.ts        # Database connection and queries
-├── queue.ts          # Redis queue setup
-├── scheduler.ts      # Cron job scheduler
-├── worker.ts         # Job execution worker
-├── executor.ts       # Job execution logic
-├── routes.ts         # API routes
-├── controllers/      # API controllers
-├── index-scheduler.ts # Scheduler entry point
-├── index-worker.ts   # Worker entry point
-└── index-api.ts      # API server entry point
+.
+├── db-init/
+│   └── init.sql      # Database schema initialization (auto-executed by Docker)
+├── src/
+│   ├── config.ts          # Configuration management
+│   ├── database.ts        # Database connection and queries
+│   ├── queue.ts          # Redis queue setup
+│   ├── scheduler.ts      # Cron job scheduler
+│   ├── worker.ts         # Job execution worker
+│   ├── executor.ts       # Job execution logic
+│   ├── routes.ts         # API routes
+│   ├── controllers/      # API controllers
+│   ├── index-scheduler.ts # Scheduler entry point
+│   ├── index-worker.ts   # Worker entry point
+│   └── index-api.ts      # API server entry point
+├── docker-compose.yml    # Docker Compose configuration
+└── Dockerfile            # Docker image definition
 ```
 
 ### Adding New Job Types
@@ -241,10 +336,17 @@ src/
 
 ### Common Issues
 
-1. **Database Connection Errors**: Verify PostgreSQL is running and credentials are correct
-2. **Redis Connection Errors**: Ensure Redis is running and accessible
+1. **Database Connection Errors**: 
+   - Docker: Verify `DB_HOST=db` in your `.env` file and that the database container is running
+   - Manual: Verify PostgreSQL is running and credentials are correct
+2. **Redis Connection Errors**: 
+   - Docker: Verify `REDIS_HOST=redis` in your `.env` file and that Redis container is running
+   - Manual: Ensure Redis is running and accessible
 3. **Job Not Executing**: Check cron expression validity and job status
 4. **Lock Issues**: Multiple scheduler instances may cause lock conflicts
+5. **Database Schema Not Created (Docker)**: 
+   - Ensure `db-init/init.sql` exists and contains the schema
+   - Remove the PostgreSQL volume and restart: `docker-compose down -v && docker-compose up -d`
 
 ### Debugging
 

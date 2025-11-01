@@ -1,0 +1,9 @@
+# Ignore the node_modules folder from the local development machine
+node_modules
+# Ignore the environment file (we will pass secrets via Docker environment variables)
+.env
+# Ignore git files
+.git
+# Ignore IDE files and logs
+.vscode
+*.log

@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # ----------------------------------
+  # 1. PostgreSQL Database Service (No Change)
+  # ----------------------------------
+  db:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "5433:5432" 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./db-init:/docker-entrypoint-initdb.d/ # to initialize the database with the tables and indexes
+
+  # ----------------------------------
+  # 2. Redis Message Broker Service (No Change)
+  # ----------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: always
+    # ports:
+    #   - "6379:6379"
+    command: redis-server --appendonly yes 
+
+  # ----------------------------------
+  # 3. API Service (The only service that defines the build)
+  # ----------------------------------
+  api:
+    build: 
+      context: .
+      target: runner
+    # IMPORTANT: Keep the image tag here so the other services can use it!
+    image: cron-service-node:latest 
+    container_name: cron_api
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+    depends_on:
+      - db
+      - redis
+
+  # ----------------------------------
+  # 4. Scheduler Service (References the image built by 'api')
+  # ----------------------------------
+  scheduler:
+    # Use the image name defined and built by the 'api' service
+    image: cron-service-node:latest 
+    container_name: cron_scheduler
+    restart: always
+    command: ["node", "dist/index-scheduler.js"] 
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+    depends_on:
+      - db
+      - redis
+
+  # ----------------------------------
+  # 5. Worker Service (References the image built by 'api')
+  # ----------------------------------
+  worker:
+    # Use the image name defined and built by the 'api' service
+    image: cron-service-node:latest 
+    container_name: cron_worker
+    restart: always
+    command: ["node", "dist/index-worker.js"] 
+    environment:
+      DB_HOST: db
+      REDIS_HOST: redis
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+    depends_on:
+      - db
+      - redis
+
+volumes:
+  postgres_data:

@@ -112,7 +112,7 @@ export class SchedulerService {
                     } catch (e: any) {
                         if (e.constraint === 'uq_job_scheduled_time') {
                             // Expected failure: job already queued or executed for this time.
-                            console.log(`   -> Job ${job.id} already processed for ${nextTime.toLocaleTimeString()}.`);
+                            // console.log(`   -> Job ${job.id} already processed for ${nextTime.toLocaleTimeString()}.`);
                         } else {
                             console.error(`Error processing job ${job.id}:`, e.message);
                         }
